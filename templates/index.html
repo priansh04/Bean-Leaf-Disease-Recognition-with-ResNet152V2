@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bean Leaf Disease Classifier</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── CSS Variables: central colour palette ── */
+    :root {
+      --green-dark  : #1a3a2a;
+      --green-mid   : #2d6a4f;
+      --green-light : #52b788;
+      --green-pale  : #b7e4c7;
+      --cream       : #f8f4ec;
+      --rust        : #c0392b;
+      --gold        : #d4a843;
+      --text-dark   : #1c1c1c;
+      --text-mid    : #4a5568;
+      --white       : #ffffff;
+      --shadow      : 0 20px 60px rgba(26,58,42,0.15);
+      --radius      : 20px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--text-dark);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Decorative background blobs ── */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.18;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::before {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, var(--green-light), transparent);
+      top: -200px; left: -200px;
+    }
+    body::after {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, var(--gold), transparent);
+      bottom: -150px; right: -150px;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
+      padding: 28px 40px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      position: relative;
+      z-index: 10;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.2);
+    }
+
+    .logo-icon {
+      font-size: 42px;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+      animation: sway 3s ease-in-out infinite;
+    }
+    @keyframes sway {
+      0%,100% { transform: rotate(-5deg); }
+      50%      { transform: rotate(5deg); }
+    }
+
+    .header-text h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--white);
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+    }
+    .header-text p {
+      font-size: 13px;
+      color: var(--green-pale);
+      font-weight: 300;
+      margin-top: 3px;
+      letter-spacing: 0.5px;
+    }
+
+    .header-badge {
+      margin-left: auto;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 30px;
+      padding: 8px 18px;
+      font-size: 12px;
+      color: var(--green-pale);
+      font-weight: 500;
+      backdrop-filter: blur(10px);
+    }
+
+    /* ── Main Layout ── */
+    main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 50px 24px 80px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .subtitle {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .subtitle h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 36px;
+      color: var(--green-dark);
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .subtitle p {
+      color: var(--text-mid);
+      font-size: 16px;
+      margin-top: 10px;
+      font-weight: 300;
+    }
+
+    /* ── Upload Card ── */
+    .upload-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 40px;
+      margin-bottom: 30px;
+    }
+
+    .drop-zone {
+      border: 2.5px dashed var(--green-light);
+      border-radius: 14px;
+      padding: 60px 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: linear-gradient(135deg, rgba(82,183,136,0.04), rgba(212,168,67,0.04));
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--green-mid);
+      background: linear-gradient(135deg, rgba(82,183,136,0.1), rgba(212,168,67,0.08));
+      transform: translateY(-2px);
+    }
+
+    .drop-icon { font-size: 56px; margin-bottom: 16px; display: block; }
+
+    .drop-zone h3 {
+      font-size: 20px;
+      color: var(--green-dark);
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    .drop-zone p {
+      color: var(--text-mid);
+      font-size: 14px;
+      font-weight: 300;
+    }
+
+    #fileInput { display: none; }
+
+    /* ── Preview ── */
+    #previewSection { display: none; margin-top: 24px; }
+
+    .preview-wrap {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    #previewImg {
+      width: 180px;
+      height: 180px;
+      object-fit: cover;
+      border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      border: 3px solid var(--green-pale);
+    }
+
+    .preview-info h4 {
+      font-size: 18px;
+      color: var(--green-dark);
+      margin-bottom: 6px;
+    }
+    .preview-info p {
+      color: var(--text-mid);
+      font-size: 14px;
+      font-weight: 300;
+    }
+
+    /* ── Predict Button ── */
+    .btn-predict {
+      display: block;
+      width: 100%;
+      margin-top: 28px;
+      padding: 18px;
+      background: linear-gradient(135deg, var(--green-mid), var(--green-dark));
+      color: var(--white);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 17px;
+      font-weight: 500;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 25px rgba(45,106,79,0.35);
+    }
+    .btn-predict:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(45,106,79,0.45);
+    }
+    .btn-predict:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* ── Loading Spinner ── */
+    #loadingSection {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+    .spinner {
+      width: 54px; height: 54px;
+      border: 5px solid var(--green-pale);
+      border-top-color: var(--green-mid);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result Card ── */
+    #resultSection { display: none; }
+
+    .result-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      animation: slideUp 0.5s ease;
+    }
+    @keyframes slideUp {
+      from { opacity:0; transform: translateY(30px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+
+    .result-header {
+      padding: 28px 36px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .result-icon { font-size: 48px; }
+
+    .result-title h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px;
+      color: var(--white);
+      font-weight: 700;
+    }
+    .result-title p {
+      font-size: 13px;
+      color: rgba(255,255,255,0.75);
+      margin-top: 3px;
+      font-weight: 300;
+    }
+
+    .confidence-badge {
+      margin-left: auto;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 30px;
+      padding: 10px 20px;
+      text-align: center;
+    }
+    .confidence-badge .pct {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--white);
+      line-height: 1;
+    }
+    .confidence-badge span {
+      display: block;
+      font-size: 11px;
+      color: rgba(255,255,255,0.7);
+      margin-top: 2px;
+    }
+
+    .result-body { padding: 32px 36px; }
+
+    /* Description & Treatment */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 600px) { .info-grid { grid-template-columns: 1fr; } }
+
+    .info-box {
+      background: var(--cream);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .info-box h4 {
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-mid);
+      margin-bottom: 10px;
+    }
+    .info-box p {
+      font-size: 14px;
+      color: var(--text-dark);
+      font-weight: 300;
+      line-height: 1.6;
+    }
+
+    /* Probability bars */
+    .prob-section h4 {
+      font-size: 13px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-mid);
+      margin-bottom: 16px;
+    }
+
+    .prob-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .prob-label {
+      width: 175px;
+      font-size: 13px;
+      color: var(--text-dark);
+      font-weight: 400;
+      flex-shrink: 0;
+      text-transform: capitalize;
+    }
+    .prob-bar-wrap {
+      flex: 1;
+      background: #eef2ee;
+      border-radius: 30px;
+      height: 10px;
+      overflow: hidden;
+    }
+    .prob-bar {
+      height: 100%;
+      border-radius: 30px;
+      transition: width 1s ease;
+    }
+    .prob-pct {
+      width: 48px;
+      text-align: right;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-mid);
+    }
+
+    /* Severity pill */
+    .severity-pill {
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-top: 6px;
+    }
+
+    /* Reset button */
+    .btn-reset {
+      display: block;
+      width: 100%;
+      margin-top: 24px;
+      padding: 14px;
+      background: transparent;
+      color: var(--green-mid);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      border: 2px solid var(--green-light);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-reset:hover {
+      background: var(--green-pale);
+      border-color: var(--green-mid);
+    }
+
+    /* Error */
+    .error-box {
+      background: #fff5f5;
+      border: 1px solid #feb2b2;
+      border-radius: 12px;
+      padding: 18px 22px;
+      color: var(--rust);
+      font-size: 15px;
+      margin-top: 20px;
+      display: none;
+    }
+
+    /* Classes info strip */
+    .classes-strip {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 36px;
+      flex-wrap: wrap;
+    }
+    .class-chip {
+      flex: 1;
+      min-width: 160px;
+      background: var(--white);
+      border-radius: 14px;
+      padding: 18px 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.07);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .class-chip .dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .class-chip p { font-size: 13px; font-weight: 500; color: var(--text-dark); }
+    .class-chip span { font-size: 11px; color: var(--text-mid); font-weight: 300; }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo-icon">🌿</div>
+  <div class="header-text">
+    <h1>Bean Leaf Disease Classifier</h1>
+    <p>ResNet152V2 · Deep Learning · Transfer Learning</p>
+  </div>
+  <div class="header-badge">Research Project · 88% Accuracy</div>
+</header>
+
+<!-- ── MAIN ── -->
+<main>
+
+  <div class="subtitle">
+    <h2>Upload a Bean Leaf Image</h2>
+    <p>Our AI model will instantly detect if your plant is healthy or diseased</p>
+  </div>
+
+  <!-- Disease class chips -->
+  <div class="classes-strip">
+    <div class="class-chip">
+      <div class="dot" style="background:#c0392b;"></div>
+      <div>
+        <p>Angular Leaf Spot</p>
+        <span>Bacterial disease</span>
+      </div>
+    </div>
+    <div class="class-chip">
+      <div class="dot" style="background:#e67e22;"></div>
+      <div>
+        <p>Bean Rust</p>
+        <span>Fungal disease</span>
+      </div>
+    </div>
+    <div class="class-chip">
+      <div class="dot" style="background:#27ae60;"></div>
+      <div>
+        <p>Healthy</p>
+        <span>No disease detected</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── UPLOAD CARD ── -->
+  <div class="upload-card">
+
+    <!-- Drop zone -->
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <span class="drop-icon">📷</span>
+      <h3>Click to upload or drag & drop</h3>
+      <p>Supports JPG and PNG · Max 10MB</p>
+      <input type="file" id="fileInput" accept=".jpg,.jpeg,.png" />
+    </div>
+
+    <!-- Image preview (hidden until file chosen) -->
+    <div id="previewSection">
+      <div class="preview-wrap">
+        <img id="previewImg" src="" alt="Preview" />
+        <div class="preview-info">
+          <h4 id="fileName">image.jpg</h4>
+          <p id="fileSize">0 KB</p>
+          <p style="margin-top:8px; color:#27ae60; font-size:13px;">✅ Ready to analyse</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error box -->
+    <div class="error-box" id="errorBox">⚠️ <span id="errorMsg"></span></div>
+
+    <!-- Predict button -->
+    <button class="btn-predict" id="predictBtn" onclick="runPrediction()" disabled>
+      🔍 Analyse Leaf Disease
+    </button>
+
+  </div><!-- /upload-card -->
+
+  <!-- ── LOADING ── -->
+  <div id="loadingSection">
+    <div class="spinner"></div>
+    <p style="color:var(--text-mid); font-size:15px;">Analysing your leaf image…</p>
+    <p style="color:var(--green-light); font-size:13px; margin-top:6px;">Running ResNet152V2 inference</p>
+  </div>
+
+  <!-- ── RESULT CARD ── -->
+  <div id="resultSection">
+    <div class="result-card">
+
+      <!-- Coloured header strip -->
+      <div class="result-header" id="resultHeader">
+        <div class="result-icon" id="resultIcon">🌿</div>
+        <div class="result-title">
+          <h3 id="resultClass">–</h3>
+          <p id="resultStatus">–</p>
+        </div>
+        <div class="confidence-badge">
+          <div class="pct" id="resultConf">–</div>
+          <span>Confidence</span>
+        </div>
+      </div>
+
+      <div class="result-body">
+
+        <!-- Description + Treatment -->
+        <div class="info-grid">
+          <div class="info-box">
+            <h4>📋 Description</h4>
+            <p id="resultDesc">–</p>
+          </div>
+          <div class="info-box">
+            <h4>💊 Treatment</h4>
+            <p id="resultTreatment">–</p>
+            <div>
+              <div class="severity-pill" id="severityPill">Severity: –</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Probability bars -->
+        <div class="prob-section">
+          <h4>📊 Class Probabilities</h4>
+          <div id="probBars"></div>
+        </div>
+
+        <!-- Reset button -->
+        <button class="btn-reset" onclick="resetApp()">↩ Upload Another Image</button>
+
+      </div>
+    </div>
+  </div><!-- /resultSection -->
+
+</main>
+
+<script>
+  // ── File input handling ──────────────────────────────────────────────────
+  // When user selects a file, show the preview image and enable the button
+
+  const fileInput  = document.getElementById('fileInput');
+  const dropZone   = document.getElementById('dropZone');
+  const predictBtn = document.getElementById('predictBtn');
+  let   selectedFile = null;
+
+  fileInput.addEventListener('change', function() {
+    if (this.files && this.files[0]) {
+      handleFile(this.files[0]);
+    }
+  });
+
+  // Drag-and-drop support
+  dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', ()=> { dropZone.classList.remove('dragover'); });
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  function handleFile(file) {
+    // Validate type
+    if (!['image/jpeg','image/jpg','image/png'].includes(file.type)) {
+      showError('Please upload a JPG or PNG image.');
+      return;
+    }
+    hideError();
+    selectedFile = file;
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('previewImg').src = e.target.result;
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
+      document.getElementById('previewSection').style.display = 'block';
+      predictBtn.disabled = false;
+    };
+    reader.readAsDataURL(file);
+
+    // Hide previous result
+    document.getElementById('resultSection').style.display = 'none';
+  }
+
+  // ── Prediction ───────────────────────────────────────────────────────────
+  // Sends the image to Flask /predict endpoint and displays the result
+
+  async function runPrediction() {
+    if (!selectedFile) return;
+
+    // Show loading, hide result
+    predictBtn.disabled = true;
+    document.getElementById('loadingSection').style.display = 'block';
+    document.getElementById('resultSection').style.display  = 'none';
+    hideError();
+
+    // Build FormData — standard way to send files via fetch
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      // POST request to Flask /predict route
+      const response = await fetch('/predict', { method: 'POST', body: formData });
+      const data     = await response.json();
+
+      document.getElementById('loadingSection').style.display = 'none';
+
+      if (data.error) {
+        showError(data.error);
+        predictBtn.disabled = false;
+        return;
+      }
+
+      displayResult(data);
+
+    } catch (err) {
+      document.getElementById('loadingSection').style.display = 'none';
+      showError('Connection error. Make sure the Flask server is running.');
+      predictBtn.disabled = false;
+    }
+  }
+
+  // ── Display Result ───────────────────────────────────────────────────────
+  function displayResult(data) {
+    const info   = data.info;
+    const color  = info.color;
+    const cls    = data.predicted_class.replace(/_/g, ' ');
+
+    // Header
+    document.getElementById('resultHeader').style.background =
+      `linear-gradient(135deg, ${color}dd, ${color}aa)`;
+    document.getElementById('resultIcon').textContent  =
+      data.predicted_class === 'healthy' ? '✅' :
+      data.predicted_class === 'bean_rust' ? '🍂' : '🔴';
+    document.getElementById('resultClass').textContent  = cls.charAt(0).toUpperCase() + cls.slice(1);
+    document.getElementById('resultStatus').textContent = 'Status: ' + info.status;
+    document.getElementById('resultConf').textContent   = data.confidence.toFixed(1) + '%';
+
+    // Info
+    document.getElementById('resultDesc').textContent      = info.description;
+    document.getElementById('resultTreatment').textContent = info.treatment;
+
+    const pill = document.getElementById('severityPill');
+    pill.textContent         = 'Severity: ' + info.severity;
+    pill.style.background    = color + '22';
+    pill.style.color         = color;
+
+    // Probability bars
+    const barColors = {
+      'angular_leaf_spot': '#c0392b',
+      'bean_rust'        : '#e67e22',
+      'healthy'          : '#27ae60'
+    };
+    const container = document.getElementById('probBars');
+    container.innerHTML = '';
+    for (const [cls, pct] of Object.entries(data.all_probs)) {
+      const label = cls.replace(/_/g, ' ');
+      const bColor = barColors[cls] || '#999';
+      container.innerHTML += `
+        <div class="prob-row">
+          <div class="prob-label">${label}</div>
+          <div class="prob-bar-wrap">
+            <div class="prob-bar" style="width:${pct}%; background:${bColor};"></div>
+          </div>
+          <div class="prob-pct">${pct}%</div>
+        </div>`;
+    }
+
+    document.getElementById('resultSection').style.display = 'block';
+    document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // ── Reset ────────────────────────────────────────────────────────────────
+  function resetApp() {
+    selectedFile = null;
+    fileInput.value = '';
+    document.getElementById('previewSection').style.display = 'none';
+    document.getElementById('resultSection').style.display  = 'none';
+    document.getElementById('loadingSection').style.display = 'none';
+    predictBtn.disabled = true;
+    hideError();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    document.getElementById('errorMsg').textContent = msg;
+    box.style.display = 'block';
+  }
+  function hideError() {
+    document.getElementById('errorBox').style.display = 'none';
+  }
+</script>
+</body>
+</html>
